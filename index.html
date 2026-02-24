@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Azure Cost Calculator</title>
+  <style>
+    :root {
+      --primary: #0078d4;
+      --primary-dark: #005a9e;
+      --bg: #f5f7fa;
+      --card: #ffffff;
+      --text: #1e1e1e;
+      --gray: #6b7280;
+      --red: #dc2626;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacOSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 2rem 1rem;
+      line-height: 1.5;
+    }
+
+    .container {
+      max-width: 720px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      color: var(--primary);
+      text-align: center;
+      margin-bottom: 2.5rem;
+      font-size: 2.1rem;
+    }
+
+    .card {
+      background: var(--card);
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+      padding: 2rem;
+      margin-bottom: 2rem;
+    }
+
+    .form-group {
+      margin-bottom: 1.4rem;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-weight: 500;
+      color: #374151;
+    }
+
+    input, select {
+      width: 100%;
+      padding: 0.75rem 1rem;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      font-size: 1rem;
+      transition: border-color 0.2s;
+    }
+
+    input:focus, select:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(0,120,212,0.15);
+    }
+
+    button {
+      background: var(--primary);
+      color: white;
+      border: none;
+      padding: 0.9rem 1.8rem;
+      border-radius: 6px;
+      font-size: 1.05rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+      width: 100%;
+      margin-top: 1rem;
+    }
+
+    button:hover {
+      background: var(--primary-dark);
+      transform: translateY(-1px);
+    }
+
+    button:disabled {
+      background: #9ca3af;
+      cursor: not-allowed;
+    }
+
+    #result {
+      margin-top: 2rem;
+      padding: 1.5rem;
+      border-radius: 10px;
+      background: #f0f9ff;
+      border-left: 5px solid var(--primary);
+      display: none;
+    }
+
+    #result.show {
+      display: block;
+    }
+
+    .result-row {
+      display: flex;
+      justify-content: space-between;
+      margin: 0.9rem 0;
+      padding: 0.4rem 0;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    .result-row:last-child {
+      border-bottom: none;
+    }
+
+    .result-label {
+      font-weight: 500;
+      color: #374151;
+    }
+
+    .result-value {
+      font-weight: 600;
+      color: #111827;
+    }
+
+    .error {
+      color: var(--red);
+      background: #fef2f2;
+      padding: 1rem;
+      border-radius: 8px;
+      margin-top: 1.5rem;
+      border-left: 4px solid var(--red);
+      display: none;
+    }
+
+    .loading {
+      text-align: center;
+      margin: 2rem 0;
+      color: var(--gray);
+      font-style: italic;
+      display: none;
+    }
+
+    footer {
+      text-align: center;
+      margin-top: 3rem;
+      color: #9ca3af;
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+<datalist id="serviceSuggestions">
+  <option value="Virtual Machines">
+  <option value="Storage">
+  <option value="Managed Disks">
+  <option value="Azure SQL Database">
+  <option value="Azure Cosmos DB">
+  <option value="Azure App Service">
+  <option value="Azure Functions">
+  <option value="Application Gateway">
+  <option value="Azure Machine Learning">
+  <option value="Azure Cognitive Services">
+</datalist>
+<div class="container">
+  <h1>Azure Cost Calculator</h1>
+
+  <div class="card">
+    <form id="costForm">
+      <div class="form-group">
+        <label for="serviceName">Service Name</label>
+    <input type="text" id="serviceName" list="serviceSuggestions" ... />    
+    </div>
+
+      <div class="form-group">
+        <label for="armSkuName">SKU / Size</label>
+        <input type="text" id="armSkuName" value="Standard_D2_v3" required placeholder="e.g. Standard_D2_v3, Premium_LRS, GP_Gen5_2..."/>
+      </div>
+
+      <div class="form-group">
+        <label for="armRegionName">Region</label>
+        <select id="armRegionName" required>
+          <option value="eastus">East US</option>
+          <option value="westus">West US</option>
+          <option value="westeurope">West Europe</option>
+          <option value="southeastasia">Southeast Asia</option>
+          <option value="uksouth">UK South</option>
+          <option value="centralindia">Central India</option>
+          <!-- Add more regions as needed -->
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="priceType">Price Type</label>
+        <select id="priceType" required>
+          <option value="Consumption">Pay-as-you-go (Consumption)</option>
+          <option value="Reservation">Reserved Instance</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="usageQuantity">Usage Quantity</label>
+        <input type="number" id="usageQuantity" value="730" min="0.01" step="0.01" required placeholder="e.g. 730 hours"/>
+      </div>
+
+      <div class="form-group">
+        <label for="unitOfMeasure">Unit of Measure</label>
+        <input type="text" id="unitOfMeasure" value="1 Hour" required placeholder="Usually: 1 Hour, 1 GB, etc."/>
+      </div>
+
+      <button type="submit" id="calculateBtn">Calculate Cost</button>
+    </form>
+
+    <div class="loading" id="loading">Fetching pricing data...</div>
+
+    <div class="error" id="error"></div>
+
+    <div id="result">
+      <h3>Estimated Cost</h3>
+      <div class="result-row">
+        <span class="result-label">Service</span>
+        <span class="result-value" id="res-service"></span>
+      </div>
+      <div class="result-row">
+        <span class="result-label">SKU</span>
+        <span class="result-value" id="res-sku"></span>
+      </div>
+      <div class="result-row">
+        <span class="result-label">Region</span>
+        <span class="result-value" id="res-region"></span>
+      </div>
+      <div class="result-row">
+        <span class="result-label">Unit Price</span>
+        <span class="result-value" id="res-price"></span>
+      </div>
+      <div class="result-row">
+        <span class="result-label">Usage</span>
+        <span class="result-value" id="res-usage"></span>
+      </div>
+      <div class="result-row" style="font-size:1.3rem; margin-top:1.2rem; padding-top:1rem; border-top:2px solid #bfdbfe;">
+        <span class="result-label">Estimated Monthly Cost</span>
+        <span class="result-value" id="res-cost" style="color:var(--primary); font-size:1.5rem;"></span>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    Powered by Azure Retail Prices API • Data is for estimation only
+  </footer>
+</div>
+
+<script>
+  const form = document.getElementById('costForm');
+  const loading = document.getElementById('loading');
+  const errorDiv = document.getElementById('error');
+  const resultDiv = document.getElementById('result');
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    errorDiv.style.display = 'none';
+    resultDiv.classList.remove('show');
+    loading.style.display = 'block';
+
+    const payload = {
+      serviceName: document.getElementById('serviceName').value.trim(),
+      armSkuName: document.getElementById('armSkuName').value.trim(),
+      armRegionName: document.getElementById('armRegionName').value,
+      priceType: document.getElementById('priceType').value,
+      usageQuantity: parseFloat(document.getElementById('usageQuantity').value),
+      unitOfMeasure: document.getElementById('unitOfMeasure').value.trim()
+    };
+
+    try {
+      const res = await fetch('http://localhost:3000/calculate-cost', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to get pricing data');
+      }
+
+      // Fill result
+      document.getElementById('res-service').textContent = data.service;
+      document.getElementById('res-sku').textContent = data.sku;
+      document.getElementById('res-region').textContent = data.region;
+      document.getElementById('res-price').textContent = `${data.unitPrice.toFixed(6)} ${data.currency} / ${data.unitOfMeasure}`;
+      document.getElementById('res-usage').textContent = `${data.usageQuantity} ${data.unitOfMeasure}`;
+      document.getElementById('res-cost').textContent = `${data.estimatedCost.toFixed(2)} ${data.currency}`;
+
+      resultDiv.classList.add('show');
+    } catch (err) {
+      errorDiv.textContent = err.message;
+      errorDiv.style.display = 'block';
+    } finally {
+      loading.style.display = 'none';
+    }
+  });
+</script>
+
+</body>
+</html>
